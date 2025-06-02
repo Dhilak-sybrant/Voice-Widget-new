@@ -33,3 +33,7 @@ def serve_widget():
 @app.route('/')
 def home():
     return 'Voice Widget Masking Server Running!'
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
