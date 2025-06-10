@@ -112,6 +112,8 @@ def generate_widget_js(agent_id, branding):
                 color: #888 !important;
                 text-align: right;
                 margin-top: 10px;
+                margin-bottom: 40px;
+                margin-right: 30px;
             }}
             /* Example: Hide feedback or logo */
             div[part='feedback-button'], 
