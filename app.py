@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # Replace with your Apps Script Web App endpoint (NOT the Sheet link)
-GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzPmBOK8pYV0Om4vzyjpiXjSznT0BM5bztArWyBh0w8IcWCfJme5Dx72eSMmzVohpNWkA/exec'
+GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
 
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
