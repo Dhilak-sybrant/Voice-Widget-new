@@ -157,18 +157,31 @@ def generate_widget_js(agent_id, branding):
     }})();
     """
 
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     print("Visitor Info:", data)
+
+#     try:
+#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+#         print("Google Sheet Response:", res.text)
+#     except Exception as e:
+#         print("Error sending to Google Sheet:", e)
+
+#     return {"status": "ok"}
+
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
-    print("Visitor Info:", data)
-
+    print("Received visitor data:", data)
     try:
         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Status Code:", res.status_code)
         print("Google Sheet Response:", res.text)
     except Exception as e:
-        print("Error sending to Google Sheet:", e)
-
+        print("Exception occurred while sending to Google Sheet:", str(e))
     return {"status": "ok"}
+
 
 @app.route('/')
 def home():
