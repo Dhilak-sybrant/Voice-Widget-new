@@ -47,10 +47,6 @@ def generate_widget_js(agent_id, branding):
             }}
 
 
-            const titleElem = shadowRoot.querySelector('div[part="title"]');
-            if (titleElem) {
-                titleElem.textContent = "Speak to know more";
-            }
 
 
             if (!shadowRoot.querySelector("#custom-style")) {{
