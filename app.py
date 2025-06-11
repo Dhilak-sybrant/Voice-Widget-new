@@ -1,13 +1,14 @@
 from flask import Flask, request, Response
+from flask_cors import CORS
 import requests
 
-
 app = Flask(__name__)
+CORS(app)
+
 
 # --- Constants ---
 # GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
-
 
 # --- JS Generator ---
 def generate_widget_js(agent_id, branding):
