@@ -139,7 +139,7 @@ def generate_widget_js(agent_id, branding):
 
                 const url = window.location.href;
 
-                fetch('/log-visitor', {{
+                fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url }})
