@@ -1,19 +1,25 @@
-
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template_string
+import requests
 
 app = Flask(__name__)
+
+# Replace with your Apps Script Web App endpoint (NOT the Sheet link)
+GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+    branding = request.args.get('branding', 'Powered by Sybrant')
+    js = generate_widget_js(agent_id, branding)
     return Response(js, mimetype='application/javascript')
 
 @app.route('/leaserush-widget.js')
 def serve_leaserush_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by Leaserush")
+    branding = request.args.get('branding', 'Powered by Leaserush')
+    js = generate_widget_js(agent_id, branding)
     return Response(js, mimetype='application/javascript')
+    
 
 def generate_widget_js(agent_id, branding):
     return f"""
@@ -33,13 +39,11 @@ def generate_widget_js(agent_id, branding):
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
-            // Rebrand
             const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
             if (brandingElem) {{
                 brandingElem.textContent = "{branding}";
             }}
 
-            // Custom styles
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
@@ -61,30 +65,31 @@ def generate_widget_js(agent_id, branding):
                 shadowRoot.appendChild(style);
             }}
 
-            // Hook call button
             const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
             if (startCallButton && !startCallButton._hooked) {{
                 startCallButton._hooked = true;
-
                 const clonedButton = startCallButton.cloneNode(true);
-                startCallButton.style.display = 'none'; // Hide original
+                startCallButton.style.display = 'none';
 
-                // Append custom button
                 const wrapper = document.createElement('div');
                 wrapper.appendChild(clonedButton);
                 startCallButton.parentElement.appendChild(wrapper);
 
-                // Show modal on custom click
                 clonedButton.addEventListener('click', (e) => {{
                     e.stopPropagation();
                     e.preventDefault();
-                    document.getElementById('visitor-form-modal').style.display = 'flex';
+
+                    const expiry = localStorage.getItem("convai_form_submitted");
+                    if (expiry && Date.now() < parseInt(expiry)) {{
+                        startCallButton.click();  // direct call if cached
+                    }} else {{
+                        document.getElementById('visitor-form-modal').style.display = 'flex';
+                    }}
                 }});
             }}
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
-        // Inject modal AFTER full DOM ready
         window.addEventListener('DOMContentLoaded', () => {{
             const modal = document.createElement('div');
             modal.id = 'visitor-form-modal';
@@ -127,15 +132,20 @@ def generate_widget_js(agent_id, branding):
                     return;
                 }}
 
+                const url = window.location.href;
+
                 fetch('/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email }})
+                    body: JSON.stringify({{ name, mobile, email, url }})
                 }});
+
+                // Cache for 5 mins
+                const expireTime = Date.now() + (5 * 60 * 1000);
+                localStorage.setItem("convai_form_submitted", expireTime.toString());
 
                 document.getElementById('visitor-form-modal').style.display = 'none';
 
-                // Retry call start
                 const widget = document.querySelector('elevenlabs-convai');
                 const shadowRoot = widget?.shadowRoot;
                 const realBtn = shadowRoot?.querySelector('button[title="Start a call"]');
@@ -145,23 +155,26 @@ def generate_widget_js(agent_id, branding):
     }})();
     """
 
-
-
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
-    print("Visitor Info:", data)  # You can save this to DB or CSV
+    print("Visitor Info:", data)
+
+    try:
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Response:", res.text)
+    except Exception as e:
+        print("Error sending to Google Sheet:", e)
+
     return {"status": "ok"}
-
-
-
-
-
-
 
 @app.route('/')
 def home():
     return 'Voice Widget Masking Server Running!'
 
+@app.route('/health')
+def health():
+    return {'status': 'healthy'}
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
