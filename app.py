@@ -150,8 +150,9 @@ def serve_sybrant_widget():
 @app.route('/leaserush-widget.js')
 def serve_leaserush_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+    js = generate_widget_js(agent_id, branding="Powered by Leaserush")  # <-- Correct branding
     return Response(js, mimetype='application/javascript')
+
 
 
 @app.route('/log-visitor', methods=['POST'])
