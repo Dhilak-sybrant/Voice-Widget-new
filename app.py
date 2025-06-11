@@ -1,13 +1,38 @@
 from flask import Flask, request, Response, render_template_string
 import requests
 import os
-
+import logging
+import sys
 
 app = Flask(__name__)
 
-# Replace with your Apps Script Web App endpoint (NOT the Sheet link)
+# --- Logging Configuration ---
+log_filename = 'log.txt'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(log_filename),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Redirect print() and errors to logger
+class PrintLogger:
+    def write(self, message):
+        if message.strip():
+            logging.info(message.strip())
+    def flush(self):
+        pass
+
+sys.stdout = PrintLogger()
+sys.stderr = PrintLogger()
+
+# --- Constants ---
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
 
+# --- Widget Endpoints ---
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
@@ -21,8 +46,8 @@ def serve_leaserush_widget():
     branding = request.args.get('branding', 'Powered by Leaserush')
     js = generate_widget_js(agent_id, branding)
     return Response(js, mimetype='application/javascript')
-    
 
+# --- JS Generator ---
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
@@ -45,9 +70,6 @@ def generate_widget_js(agent_id, branding):
             if (brandingElem) {{
                 brandingElem.textContent = "{branding}";
             }}
-
-
-
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
@@ -160,19 +182,7 @@ def generate_widget_js(agent_id, branding):
     }})();
     """
 
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     print("Visitor Info:", data)
-
-#     try:
-#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-#         print("Google Sheet Response:", res.text)
-#     except Exception as e:
-#         print("Error sending to Google Sheet:", e)
-
-#     return {"status": "ok"}
-
+# --- Visitor Logging Endpoint ---
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
@@ -182,10 +192,10 @@ def log_visitor():
         print("Google Sheet Status Code:", res.status_code)
         print("Google Sheet Response:", res.text)
     except Exception as e:
-        print("Exception occurred while sending to Google Sheet:", str(e))
+        logging.error("Exception occurred while sending to Google Sheet: %s", str(e))
     return {"status": "ok"}
 
-
+# --- Health Check ---
 @app.route('/')
 def home():
     return 'Voice Widget Masking Server Running!'
@@ -194,8 +204,7 @@ def home():
 def health():
     return {'status': 'healthy'}
 
-# if __name__ == "__main__":
-#     port = int(os.environ.get("PORT", 5000))
-#     app.run(debug=True, host="0.0.0.0", port=port)
+# --- Run the App ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
