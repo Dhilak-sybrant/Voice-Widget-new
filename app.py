@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, render_template_string
+from flask import Flask, request, Response
 import requests
 import os
 import logging
@@ -6,19 +6,17 @@ import sys
 
 app = Flask(__name__)
 
-# --- Logging Configuration ---
+# --- Logging Setup ---
 log_filename = 'log.txt'
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         logging.FileHandler(log_filename),
         logging.StreamHandler(sys.stdout)
     ]
 )
 
-# Redirect print() and errors to logger
 class PrintLogger:
     def write(self, message):
         if message.strip():
@@ -29,10 +27,8 @@ class PrintLogger:
 sys.stdout = PrintLogger()
 sys.stderr = PrintLogger()
 
-# --- Constants ---
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
 
-# --- Widget Endpoints ---
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
@@ -47,10 +43,8 @@ def serve_leaserush_widget():
     js = generate_widget_js(agent_id, branding)
     return Response(js, mimetype='application/javascript')
 
-# --- JS Generator ---
 def generate_widget_js(agent_id, branding):
-    return f"""
-    (function() {{
+    return f"""(function() {{
         const tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", "{agent_id}");
         document.body.appendChild(tag);
@@ -58,27 +52,23 @@ def generate_widget_js(agent_id, branding):
         const script = document.createElement("script");
         script.src = "https://elevenlabs.io/convai-widget/index.js";
         script.async = true;
-        script.type = "text/javascript";
         document.body.appendChild(script);
 
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
-
             const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) {{
-                brandingElem.textContent = "{branding}";
-            }}
+            if (brandingElem) brandingElem.textContent = "{branding}";
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
                 style.textContent = `
                     div[part='branding'] {{
-                        font-size: 12px !important;
-                        font-family: Arial, sans-serif !important;
-                        color: #888 !important;
+                        font-size: 12px;
+                        font-family: Arial, sans-serif;
+                        color: #888;
                         text-align: right;
                         margin-top: 10px;
                         margin-bottom: 40px;
@@ -97,18 +87,14 @@ def generate_widget_js(agent_id, branding):
                 startCallButton._hooked = true;
                 const clonedButton = startCallButton.cloneNode(true);
                 startCallButton.style.display = 'none';
-
                 const wrapper = document.createElement('div');
                 wrapper.appendChild(clonedButton);
                 startCallButton.parentElement.appendChild(wrapper);
-
                 clonedButton.addEventListener('click', (e) => {{
-                    e.stopPropagation();
                     e.preventDefault();
-
                     const expiry = localStorage.getItem("convai_form_submitted");
                     if (expiry && Date.now() < parseInt(expiry)) {{
-                        startCallButton.click();  // direct call if cached
+                        startCallButton.click();
                     }} else {{
                         document.getElementById('visitor-form-modal').style.display = 'flex';
                     }}
@@ -149,53 +135,40 @@ def generate_widget_js(agent_id, branding):
 
             document.getElementById('visitor-form').addEventListener('submit', function(e) {{
                 e.preventDefault();
-
                 const name = this.name.value.trim();
                 const mobile = this.mobile.value.trim();
                 const email = this.email.value.trim();
-
                 if (!name || !mobile || !email) {{
                     alert("Please fill all fields.");
                     return;
                 }}
-
                 const url = window.location.href;
-
                 fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url }})
                 }});
-
-                // Cache for 5 mins
                 const expireTime = Date.now() + (5 * 60 * 1000);
                 localStorage.setItem("convai_form_submitted", expireTime.toString());
-
                 document.getElementById('visitor-form-modal').style.display = 'none';
-
                 const widget = document.querySelector('elevenlabs-convai');
-                const shadowRoot = widget?.shadowRoot;
-                const realBtn = shadowRoot?.querySelector('button[title="Start a call"]');
+                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
                 realBtn?.click();
             }});
         }});
-    }})();
-    """
+    }})();"""
 
-# --- Visitor Logging Endpoint ---
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
-    print("Received visitor data:", data)
+    logging.info(f"Received visitor data: {data}")
     try:
         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        print("Google Sheet Status Code:", res.status_code)
-        print("Google Sheet Response:", res.text)
+        logging.info(f"Google Sheet Response: {res.status_code} - {res.text}")
     except Exception as e:
-        logging.error("Exception occurred while sending to Google Sheet: %s", str(e))
+        logging.exception("Failed to send visitor data")
     return {"status": "ok"}
 
-# --- Health Check ---
 @app.route('/')
 def home():
     return 'Voice Widget Masking Server Running!'
@@ -204,7 +177,6 @@ def home():
 def health():
     return {'status': 'healthy'}
 
-# --- Run the App ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port)
