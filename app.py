@@ -1,35 +1,13 @@
 from flask import Flask, request, Response
 import requests
-import os
-import logging
-import sys
+
 
 app = Flask(__name__)
 
-# --- Logging ---
-log_filename = 'log.txt'
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(log_filename),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-class PrintLogger:
-    def write(self, message):
-        if message.strip():
-            logging.info(message.strip())
-    def flush(self):
-        pass
-
-sys.stdout = PrintLogger()
-sys.stderr = PrintLogger()
-
 # --- Constants ---
-GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
+# GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
+GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+
 
 # --- JS Generator ---
 def generate_widget_js(agent_id, branding):
@@ -164,32 +142,29 @@ def generate_widget_js(agent_id, branding):
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    branding = request.args.get('branding', 'Powered by Sybrant')
-    js = generate_widget_js(agent_id, branding)
+    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/leaserush-widget.js')
 def serve_leaserush_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    branding = request.args.get('branding', 'Powered by Leaserush')
-    js = generate_widget_js(agent_id, branding)
+    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
     return Response(js, mimetype='application/javascript')
+
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
-    data = request.json or {}
-    logging.info(f"Received visitor: {data}")
+    data = request.json
+    print("Visitor Info:", data)
+
     try:
-        with open('log.txt', 'a') as f:
-            f.write(f"{data}\n")
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Response:", res.text)
     except Exception as e:
-        logging.warning(f"File log failed: {e}")
-    try:
-        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data, timeout=5)
-        logging.info(f"Google Sheet Response: {res.status_code} - {res.text}")
-    except Exception as e:
-        logging.warning(f"Google Sheet Error: {e}")
+        print("Error sending to Google Sheet:", e)
+
     return {"status": "ok"}
+
 
 @app.route('/')
 def home():
@@ -206,5 +181,4 @@ def health():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
 
